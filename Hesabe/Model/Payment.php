@@ -1,11 +1,13 @@
 <?php
 namespace HesabePayment\Hesabe\Model;
 
-class Payment extends \Magento\Payment\Model\Method\AbstractMethod
-{
-    const METHOD_CODE                       = 'hesabe';
+use Magento\Payment\Model\Method\AbstractMethod;
 
-    protected $_code                    	= self::METHOD_CODE;
+class Payment extends AbstractMethod
+{
+    const METHOD_CODE = 'hesabepayment_knet';
+
+    protected $_code = self::METHOD_CODE;
 
     protected $_isOffline = true;
 }
