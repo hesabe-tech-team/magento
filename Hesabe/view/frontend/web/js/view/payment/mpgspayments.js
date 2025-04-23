@@ -10,7 +10,7 @@ define(
         'use strict';
         rendererList.push(
             {
-                type: 'mpgs',
+                type: 'hesabepayment_mpgs',
                 component: 'HesabePayment_Hesabe/js/view/payment/method-renderer/mpgsmethod'
             }
         );

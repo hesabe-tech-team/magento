@@ -10,7 +10,7 @@ define(
         'use strict';
         rendererList.push(
             {
-                type: 'hesabe',
+                type: 'hesabepayment_knet',
                 component: 'HesabePayment_Hesabe/js/view/payment/method-renderer/hesabemethod'
             }
         );

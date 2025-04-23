@@ -10,4 +10,5 @@ class Payment extends AbstractMethod
     protected $_code = self::METHOD_CODE;
 
     protected $_isOffline = true;
+    protected $_canUseCheckout = true;
 }
