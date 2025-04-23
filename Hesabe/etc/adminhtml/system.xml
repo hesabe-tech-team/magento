@@ -2,7 +2,7 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
     <system>
         <section id="payment">
-            <group id="hesabe" translate="label" type="text" sortOrder="34" showInDefault="1" showInWebsite="1" showInStore="1">
+            <group id="hesabepayment_knet" translate="label" type="text" sortOrder="34" showInDefault="1" showInWebsite="1" showInStore="1">
                 <label>Knet Payment Gateway</label>
                 <field id="active" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="0">
                     <label>Enabled</label>
@@ -13,7 +13,7 @@
                 </field>
                
             </group>
-            <group id="mpgs" translate="label" type="text" sortOrder="34" showInDefault="1" showInWebsite="1" showInStore="1">
+            <group id="hesabepayment_mpgs" translate="label" type="text" sortOrder="34" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Mpgs Credit / Installments</label>
                     <field id="active" translate="label" type="select" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="0">
                         <label>Enabled</label>
@@ -24,7 +24,7 @@
                     </field>
                    
                 </group>
-             <group id="knetmpgs" translate="label" type="text" sortOrder="34" showInDefault="1" showInWebsite="1" showInStore="1">
+             <group id="hesabepayment_common" translate="label" type="text" sortOrder="34" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Knet and Mpgs payment method configuration</label>
                <field id="payment_mode" translate="label" type="select" sortOrder="23" showInDefault="1" showInWebsite="1" showInStore="0">
                     <label>Mode</label>
