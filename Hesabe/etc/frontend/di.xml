@@ -2,16 +2,26 @@
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
 
+    <!-- 1) Map your METHOD_CODEs into the CC form provider (optional but recommended) -->
     <type name="Magento\Payment\Model\CcGenericConfigProvider">
         <arguments>
             <argument name="methodCodes" xsi:type="array">
-                <!-- K-Net -->
                 <item name="hesabepayment_knet" xsi:type="const">
                     HesabePayment\Hesabe\Model\Payment::METHOD_CODE
                 </item>
-                <!-- MPGS -->
                 <item name="hesabepayment_mpgs" xsi:type="const">
                     HesabePayment\Hesabe\Model\Hesabepayment::METHOD_CODE
+                </item>
+            </argument>
+        </arguments>
+    </type>
+
+    <!-- 2) THIS is the missing piece: register your ConfigProvider so that your methods get injected into checkoutConfig -->
+    <type name="Magento\Checkout\Model\CompositeConfigProvider">
+        <arguments>
+            <argument name="configProviders" xsi:type="array">
+                <item name="hesabe" xsi:type="object">
+                    HesabePayment\Hesabe\Model\Checkout\ConfigProvider
                 </item>
             </argument>
         </arguments>
