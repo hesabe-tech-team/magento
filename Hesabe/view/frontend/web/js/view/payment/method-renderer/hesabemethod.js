@@ -19,31 +19,37 @@ define([
         },
 
         getCode: function () {
-            return 'hesabepayment_knet'; // or 'hesabepayment_mpgs'
+            return 'hesabepayment_knet';
         },
 
         isActive: function () {
             return true;
         },
 
-        /**
-         * Called when "Place Order" is clicked
-         */
         placeOrder: function (data, event) {
-            if (event) {
-                event.preventDefault();
-            }
+            if (event) event.preventDefault();
 
             if (this.validate() && additionalValidators.validate()) {
                 fullScreenLoader.startLoader();
-                placeOrderAction(this.getData(), this.messageContainer).done(function () {
-                    redirectOnSuccessAction.execute(); // redirects to hesabe/payment/redirect
-                }).fail(function () {
+
+                var self = this;
+                placeOrderAction(self.getData(), self.messageContainer)
+                  .fail(function () {
                     fullScreenLoader.stopLoader();
-                });
+                  })
+                  .done(function () {
+                    fullScreenLoader.stopLoader();
+
+                    // Pull the redirectUrl you injected in ConfigProvider
+                    var url = window.checkoutConfig
+                      .payment[self.getCode()]
+                      .redirectUrl;
+                    // Now send the browser to the Hesabe gateway
+                    redirectOnSuccessAction.execute(url);
+                  });
+
                 return true;
             }
-
             return false;
         }
     });
