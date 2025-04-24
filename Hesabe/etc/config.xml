@@ -1,22 +1,24 @@
-<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
     <default>
         <payment>
-            <hesabe> 
-                <active>0</active>
+            <hesabepayment_knet>
+                <active>1</active>
                 <model>HesabePayment\Hesabe\Model\Payment</model>
                 <order_status>pending</order_status>
-                <title>K-Net / Credit Cards</title>
+                <title>K-NET / Credit Cards</title>
                 <allowspecific>0</allowspecific>
-                <group>offline</group>               
-            </hesabe>
-             <mpgs> 
-                <active>0</active>
+                <group>offline</group>
+            </hesabepayment_knet>
+            <hesabepayment_mpgs>
+                <active>1</active>
                 <model>HesabePayment\Hesabe\Model\Hesabepayment</model>
                 <order_status>pending</order_status>
-                <title>Mpgs / Credit Cards</title>
+                <title>MPGS / Credit Cards</title>
                 <allowspecific>0</allowspecific>
-                <group>offline</group>               
-            </mpgs>
+                <group>offline</group>
+            </hesabepayment_mpgs>
         </payment>
     </default>
 </config>

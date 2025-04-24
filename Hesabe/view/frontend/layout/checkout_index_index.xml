@@ -17,7 +17,8 @@
                                                     <item name="children" xsi:type="array">
                                                         <item name="renders" xsi:type="array">
                                                             <item name="children" xsi:type="array">
-                                                                <!-- K-Net renderer -->
+
+                                                                <!-- K-NET -->
                                                                 <item name="hesabepayment_knet" xsi:type="array">
                                                                     <item name="component" xsi:type="string">
                                                                         HesabePayment_Hesabe/js/view/payment/method-renderer/hesabemethod
@@ -28,7 +29,8 @@
                                                                         </item>
                                                                     </item>
                                                                 </item>
-                                                                <!-- MPGS renderer -->
+
+                                                                <!-- MPGS -->
                                                                 <item name="hesabepayment_mpgs" xsi:type="array">
                                                                     <item name="component" xsi:type="string">
                                                                         HesabePayment_Hesabe/js/view/payment/method-renderer/mpgsmethod
@@ -39,6 +41,7 @@
                                                                         </item>
                                                                     </item>
                                                                 </item>
+
                                                             </item>
                                                         </item>
                                                     </item>
