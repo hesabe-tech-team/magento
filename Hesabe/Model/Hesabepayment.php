@@ -7,10 +7,12 @@ use Magento\Framework\Api\ExtensionAttributesFactory;
 use Magento\Framework\Api\AttributeValueFactory;
 use Magento\Framework\Model\ResourceModel\AbstractResource;
 use Magento\Framework\Data\Collection\AbstractDb;
-use Magento\Payment\Helper\Data as PaymentHelper;
 use Magento\Payment\Model\Method\Logger;
-use Magento\Payment\Model\Method\AbstractMethod;
+use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Payment\Model\Method\Plugin\Validator;
 use Magento\Framework\UrlInterface;
+use Magento\Framework\Locale\FormatInterface;
+use Magento\Payment\Model\Method\AbstractMethod;
 
 class Hesabepayment extends AbstractMethod
 {
@@ -20,18 +22,18 @@ class Hesabepayment extends AbstractMethod
     protected $_isOffline         = true;
     protected $_canUseCheckout    = true;
 
-    private UrlInterface $urlBuilder;
-
     public function __construct(
         Context $context,
         Registry $registry,
         ExtensionAttributesFactory $extensionFactory,
         AttributeValueFactory $customAttributeFactory,
-        PaymentHelper $paymentData,
         Logger $logger,
+        ScopeConfigInterface $scopeConfig,
+        Validator $methodValidator,
+        UrlInterface $urlBuilder,
+        FormatInterface $localeFormat,
         AbstractResource $resource = null,
         AbstractDb $resourceCollection = null,
-        UrlInterface $urlBuilder,
         array $data = []
     ) {
         parent::__construct(
@@ -39,20 +41,22 @@ class Hesabepayment extends AbstractMethod
             $registry,
             $extensionFactory,
             $customAttributeFactory,
-            $paymentData,
             $logger,
+            $scopeConfig,
+            $methodValidator,
+            $urlBuilder,
+            $localeFormat,
             $resource,
             $resourceCollection,
             $data
         );
-        $this->urlBuilder = $urlBuilder;
     }
 
     /**
-     * Redirect URL after placeOrder()
+     * Magento will redirect the customer here after placeOrder()
      */
     public function getOrderPlaceRedirectUrl(): string
     {
-        return $this->urlBuilder->getUrl('hesabe/payment/redirect');
+        return $this->_urlBuilder->getUrl('hesabe/payment/redirect');
     }
 }
