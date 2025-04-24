@@ -31,15 +31,15 @@ define([
 
             if (this.validate() && additionalValidators.validate()) {
                 fullScreenLoader.startLoader();
-
                 var self = this;
+
                 placeOrderAction(self.getData(), self.messageContainer)
                   .fail(function () {
                     fullScreenLoader.stopLoader();
                   })
                   .done(function () {
                     fullScreenLoader.stopLoader();
-
+                    // redirect to Hesabe portal
                     var url = window.checkoutConfig
                       .payment[self.getCode()]
                       .redirectUrl;
