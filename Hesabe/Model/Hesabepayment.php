@@ -38,9 +38,9 @@ class Hesabepayment extends AbstractMethod
             $registry,
             $extensionFactory,
             $customAttributeFactory,
-            $scopeConfig,
-            $paymentData,
-            $logger,
+            $scopeConfig,        // ✅ pass ScopeConfig correctly
+            $paymentData,         // ✅ then Payment Data
+            $logger,              // ✅ then Logger
             $resource,
             $resourceCollection,
             $data

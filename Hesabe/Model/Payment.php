@@ -38,9 +38,9 @@ class Payment extends AbstractMethod
             $registry,
             $extensionFactory,
             $customAttributeFactory,
-            $scopeConfig,
-            $paymentData,
-            $logger,
+            $scopeConfig,        // ✅ THIS LINE IS VERY IMPORTANT
+            $paymentData,         // ✅ Helper\Data
+            $logger,              // ✅ Logger
             $resource,
             $resourceCollection,
             $data
