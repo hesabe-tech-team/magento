@@ -6,4 +6,10 @@
     <type name="Magento\Sales\Model\Order\Email\Sender\OrderSender">
         <plugin name="change_is_enable_method" type="HesabePayment\Hesabe\Plugin\Sales\Order\Email\Sender\OrderSender" sortOrder="1" disabled="false"/>
     </type>
+    <type name="HesabePayment\Hesabe\Model\Payment">
+        <arguments>
+            <argument name="logger" xsi:type="object">Magento\Payment\Model\Method\Logger</argument>
+            <argument name="methodValidator" xsi:type="object">Magento\Payment\Model\Method\Plugin\Validator</argument>
+        </arguments>
+    </type>
 </config>
