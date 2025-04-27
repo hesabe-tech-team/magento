@@ -4,7 +4,7 @@ namespace HesabePayment\Hesabe\Model;
 use Magento\Payment\Model\Method\AbstractMethod;
 use Magento\Framework\UrlInterface;
 use Magento\Payment\Model\Method\Logger;
-use Magento\Payment\Model\Method\Plugin\Validator as MethodValidator;
+use Magento\Payment\Gateway\Validator\ValidatorInterface as MethodValidator;
 
 class Hesabepayment extends AbstractMethod
 {
