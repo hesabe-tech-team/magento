@@ -5,7 +5,6 @@ use Magento\Payment\Model\Method\AbstractMethod;
 use Magento\Framework\UrlInterface;
 use Magento\Payment\Model\Method\Logger;
 use Magento\Payment\Gateway\Validator\ValidatorInterface as MethodValidator;
-use Magento\Framework\App\Config\ScopeConfigInterface;
 
 class Hesabepayment extends AbstractMethod
 {
@@ -24,7 +23,6 @@ class Hesabepayment extends AbstractMethod
         \Magento\Framework\Registry $registry,
         \Magento\Framework\Api\ExtensionAttributesFactory $extensionFactory,
         \Magento\Framework\Api\AttributeValueFactory $customAttributeFactory,
-        ScopeConfigInterface $scopeConfig,
         \Magento\Payment\Helper\Data $paymentData,
         Logger $logger,
         UrlInterface $urlBuilder,
@@ -38,7 +36,6 @@ class Hesabepayment extends AbstractMethod
             $registry,
             $extensionFactory,
             $customAttributeFactory,
-            $scopeConfig,
             $paymentData,
             $logger,
             $resource,
