@@ -5,7 +5,6 @@ use Magento\Payment\Model\Method\AbstractMethod;
 use Magento\Framework\UrlInterface;
 use Magento\Payment\Model\Method\Logger;
 use Magento\Payment\Gateway\Validator\ValidatorInterface as MethodValidator;
-use Magento\Framework\App\Config\ScopeConfigInterface;
 
 class Payment extends AbstractMethod
 {
@@ -24,9 +23,8 @@ class Payment extends AbstractMethod
         \Magento\Framework\Registry $registry,
         \Magento\Framework\Api\ExtensionAttributesFactory $extensionFactory,
         \Magento\Framework\Api\AttributeValueFactory $customAttributeFactory,
-        ScopeConfigInterface $scopeConfig,
-        \Magento\Payment\Helper\Data $paymentData,
-        Logger $logger,
+        \Magento\Payment\Helper\Data $paymentData,         // 5th param
+        Logger $logger,                                    // 6th param
         UrlInterface $urlBuilder,
         MethodValidator $methodValidator,
         \Magento\Framework\Model\ResourceModel\AbstractResource $resource = null,
@@ -38,9 +36,8 @@ class Payment extends AbstractMethod
             $registry,
             $extensionFactory,
             $customAttributeFactory,
-            $scopeConfig,        // ✅ THIS LINE IS VERY IMPORTANT
-            $paymentData,         // ✅ Helper\Data
-            $logger,              // ✅ Logger
+            $paymentData,   // ✅
+            $logger,        // ✅
             $resource,
             $resourceCollection,
             $data
