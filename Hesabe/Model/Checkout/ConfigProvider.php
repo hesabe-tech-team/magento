@@ -6,10 +6,8 @@ use Magento\Framework\UrlInterface;
 
 class ConfigProvider implements ConfigProviderInterface
 {
-    const CODE_KNET = 'hesabepayment_knet';
-    const CODE_MPGS = 'hesabepayment_mpgs';
+    const CODE = 'hesabe';
 
-    /** @var UrlInterface */
     private $urlBuilder;
 
     public function __construct(UrlInterface $urlBuilder)
@@ -21,10 +19,7 @@ class ConfigProvider implements ConfigProviderInterface
     {
         return [
             'payment' => [
-                self::CODE_KNET => [
-                    'redirectUrl' => $this->urlBuilder->getUrl('hesabe/payment/redirect')
-                ],
-                self::CODE_MPGS => [
+                self::CODE => [
                     'redirectUrl' => $this->urlBuilder->getUrl('hesabe/payment/redirect')
                 ]
             ]
