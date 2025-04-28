@@ -5,10 +5,9 @@ use Magento\Payment\Model\Method\AbstractMethod;
 
 class Hesabepayment extends AbstractMethod
 {
-    const METHOD_CODE     = 'hesabepayment_mpgs';
-
-    protected $_code          = self::METHOD_CODE;
-    protected $_isOffline     = true;
+    const METHOD_CODE        = 'hesabepayment_mpgs';
+    protected $_code         = self::METHOD_CODE;
+    protected $_isOffline    = true;
     protected $_canUseCheckout = true;
-    protected $_redirectUrl   = 'hesabe/payment/redirect';
+    protected $_redirectUrl  = 'hesabe/payment/redirect';
 }

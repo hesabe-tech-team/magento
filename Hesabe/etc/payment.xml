@@ -1,11 +1,12 @@
 <?xml version="1.0"?>
 <payment xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Payment:etc/payment.xsd">
-
-  <!-- Single hesabe method, group declared inside -->
-  <method name="hesabe">
-    <title>Hesabe Payment</title>
+  <method name="hesabepayment_knet">
+    <title>K-NET / Credit Cards</title>
     <group>offline</group>
   </method>
-
+  <method name="hesabepayment_mpgs">
+    <title>MPGS / Credit Cards</title>
+    <group>offline</group>
+  </method>
 </payment>
