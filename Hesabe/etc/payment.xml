@@ -1,9 +1,11 @@
 <?xml version="1.0"?>
 <payment xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Payment:etc/payment.xsd">
-  <group id="offline">
-    <method name="hesabe">
-      <title>Hesabe Payment</title>
-    </method>
-  </group>
+
+  <!-- Single hesabe method, group declared inside -->
+  <method name="hesabe">
+    <title>Hesabe Payment</title>
+    <group>offline</group>
+  </method>
+
 </payment>
