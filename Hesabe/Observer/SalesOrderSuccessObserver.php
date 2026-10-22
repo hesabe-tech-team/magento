@@ -222,7 +222,6 @@ class SalesOrderSuccessObserver implements ObserverInterface
                 curl_setopt($curl, CURLOPT_TIMEOUT, 12);
                 curl_setopt($curl, CURLOPT_POSTFIELDS, $encrypted_post_string);
                 $post_response = curl_exec($curl);
-                curl_close($curl); // close curl object
 
                 list($responsheader, $responsebody) = explode("\r\n\r\n", $post_response, 2);
                 
@@ -314,7 +313,6 @@ class SalesOrderSuccessObserver implements ObserverInterface
                 curl_setopt($curl, CURLOPT_TIMEOUT, 12);
                 curl_setopt($curl, CURLOPT_POSTFIELDS, $encrypted_post_string);
                 $post_response = curl_exec($curl);
-                curl_close($curl); // close curl object
 
                 list($responsheader, $responsebody) = explode("\r\n\r\n", $post_response, 2);
 
