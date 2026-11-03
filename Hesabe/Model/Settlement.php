@@ -16,9 +16,9 @@ use Psr\Log\LoggerInterface;
 /**
  * Applies what Hesabe reports about a payment to its Magento order.
  *
- * Two things report a payment: the customer's return and Hesabe's webhook. They arrive in
- * either order and the webhook can arrive more than once: it usually lands a few seconds
- * before the customer, and Hesabe retries it. So every
+ * Three things report a payment: the customer's return, Hesabe's webhook and the admin's
+ * "Check Payment Status". They arrive in any order and some arrive more than once: the
+ * webhook usually lands a few seconds before the customer, and Hesabe retries it. So every
  * change happens under a per-order lock, and only to an order still awaiting payment. A paid
  * or cancelled order is never changed here; when Hesabe disagrees with it, the order gets a
  * comment for a person to act on.
@@ -37,6 +37,8 @@ class Settlement
     public const WAITING = 'waiting';
     /** Hesabe and the order disagree; nothing changed, the order has a comment. */
     public const CONFLICT = 'conflict';
+    /** Hesabe could not be asked; nothing changed. */
+    public const UNREACHABLE = 'unreachable';
     /** Another request is updating the order; nothing changed. */
     public const BUSY = 'busy';
 
@@ -47,6 +49,7 @@ class Settlement
 
     public function __construct(
         private readonly Config $config,
+        private readonly Enquiry $enquiry,
         private readonly OrderFactory $orderFactory,
         private readonly OrderManagementInterface $orderManagement,
         private readonly BuilderInterface $transactionBuilder,
@@ -76,6 +79,45 @@ class Settlement
             (string) ($webhook['token'] ?? ''),
             __('Hesabe webhook')
         ));
+    }
+
+    /**
+     * Asks Hesabe's Transaction Enquiry about the order and applies the answer.
+     */
+    public function confirm(Order $order): string
+    {
+        try {
+            $attempts = $this->enquiry->attempts((string) $order->getIncrementId());
+        } catch (EnquiryException $exception) {
+            $this->logger->warning(sprintf(
+                'Hesabe payment check for order %s failed: %s',
+                $order->getIncrementId(),
+                $exception->getMessage()
+            ));
+            return self::UNREACHABLE;
+        }
+
+        $record = $this->pick($attempts);
+        return $this->locked($order, function (Order $fresh) use ($record): string {
+            if ($record === null) {
+                if (!$this->isPaid($fresh)) {
+                    return self::WAITING;
+                }
+                $fresh->addCommentToStatusHistory(__(
+                    'Payment status check: Hesabe has no payment for this order, but the order is marked paid. '
+                    . 'Check it in the Hesabe Merchant Panel.'
+                ));
+                $fresh->save();
+                return self::CONFLICT;
+            }
+            return $this->apply(
+                $fresh,
+                $record,
+                // `Id` is what the return page records as the transaction, so both name it alike.
+                (string) ($record['Id'] ?? $record['token'] ?? ''),
+                __('payment status check')
+            );
+        });
     }
 
     /**
@@ -182,6 +224,22 @@ class Settlement
         }
 
         return self::WAITING;
+    }
+
+    /**
+     * The paid attempt if there is one, else the last attempt Hesabe lists.
+     *
+     * @param list<array<string, mixed>> $attempts
+     * @return array<string, mixed>|null
+     */
+    private function pick(array $attempts): ?array
+    {
+        foreach ($attempts as $attempt) {
+            if (strtoupper(trim((string) ($attempt['status'] ?? ''))) === 'SUCCESSFUL') {
+                return $attempt;
+            }
+        }
+        return $attempts === [] ? null : $attempts[array_key_last($attempts)];
     }
 
     /**
@@ -310,10 +368,13 @@ class Settlement
     {
         $details = [
             'Payment Token' => $record['token'] ?? null,
+            'Id' => $record['Id'] ?? null,
+            'Payment Id' => $record['PaymentID'] ?? null,
             'Paid On' => $record['datetime'] ?? null,
             'Method' => $record['payment_type'] ?? null,
             'amount' => $record['amount'] ?? null,
             'Status' => $record['status'] ?? null,
+            'Track ID' => $record['TrackID'] ?? null,
             'Confirmed by' => (string) $source,
         ];
         return array_map('strval', array_filter($details, static fn ($value): bool => is_scalar($value) && $value !== ''));
