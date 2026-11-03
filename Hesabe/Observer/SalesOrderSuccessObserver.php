@@ -195,7 +195,9 @@ class SalesOrderSuccessObserver implements ObserverInterface
                     "paymentType" => $paymentoption,
                     "orderReferenceNumber" => $order->getIncrementId(),
                     "variable1" => $oderId,
-                    "version" => '2.0'
+                    // 3.0 makes Hesabe sign its webhook (x-signature); with 2.0 it is unsigned.
+                    "version" => '3.0',
+                    "webhookUrl" => $base_url . 'hesabe/webhook/index'
                 ];
 
                 $post_string = json_encode($post_values);
@@ -285,7 +287,9 @@ class SalesOrderSuccessObserver implements ObserverInterface
                     "paymentType" => $paymentoption,
                     "orderReferenceNumber" => $order->getIncrementId(),
                     "variable1" => $oderId,
-                    "version" => '2.0'
+                    // 3.0 makes Hesabe sign its webhook (x-signature); with 2.0 it is unsigned.
+                    "version" => '3.0',
+                    "webhookUrl" => $base_url . 'hesabe/webhook/index'
                 ];
 
                 $post_string = json_encode($post_values);
@@ -347,7 +351,10 @@ class SalesOrderSuccessObserver implements ObserverInterface
             if (count($orderIds)) {
                 $this->_checkoutSession->setForceOrderMailSentOnSuccess(true);
                 $order = $this->_orderFactory->create()->load($orderIds[0]);
-                $this->orderSender->send($order, true);
+                // The webhook usually pays the order, and sends this email, before the customer is back.
+                if (!$order->getEmailSent()) {
+                    $this->orderSender->send($order, true);
+                }
             }
         }
     }

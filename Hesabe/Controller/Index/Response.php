@@ -3,6 +3,7 @@
 namespace HesabePayment\Hesabe\Controller\Index;
 
 use HesabePayment\Hesabe\Helper\Data;
+use HesabePayment\Hesabe\Model\Settlement;
 use Magento\Checkout\Model\Session;
 use Magento\Framework\App\Action\Context;
 use Magento\Framework\App\ResponseFactory;
@@ -10,8 +11,6 @@ use Magento\Framework\ObjectManagerInterface;
 use Magento\Framework\Registry;
 use Magento\Framework\View\Result\PageFactory;
 use Magento\Sales\Api\OrderRepositoryInterface;
-use Magento\Sales\Model\Order;
-use Magento\Sales\Model\Order\Payment\Transaction;
 use Magento\Sales\Model\OrderFactory;
 
 class Response extends \Magento\Framework\App\Action\Action
@@ -28,7 +27,8 @@ class Response extends \Magento\Framework\App\Action\Action
     protected $_responseFactory;
     protected $_registry;
     protected $_objectManager;
-   
+    protected $settlement;
+
     /**
      * Constructor
      *
@@ -44,9 +44,11 @@ class Response extends \Magento\Framework\App\Action\Action
         ResponseFactory $responseFactory,
         Registry $registry,
         Data $encrypthelper,
-        ObjectManagerInterface $objectManager
+        ObjectManagerInterface $objectManager,
+        Settlement $settlement
     )
     {
+        $this->settlement = $settlement;
         $this->resultPageFactory = $resultPageFactory;
         $this->_checkoutSession = $checkoutSession;
         $this->_orderFactory = $orderFactory;
@@ -75,9 +77,6 @@ class Response extends \Magento\Framework\App\Action\Action
             $methodArray = array("1" => "KNet", "2" => "MasterCard / Visa");
             $encryptionkey = $this->_objectManager->get('Magento\Framework\App\Config\ScopeConfigInterface')->getValue('payment/knetmpgs/encryptionkey');
             $secretkey = $this->_objectManager->get('Magento\Framework\App\Config\ScopeConfigInterface')->getValue('payment/knetmpgs/secretkey');
-            $new_order_status = $this->_objectManager->get('Magento\Framework\App\Config\ScopeConfigInterface')
-                ->getValue('payment/knetmpgs/new_order_status');
-
 
             $decrypted_post_response = $this->encrypthelper->decrypt($urlparams['data'], $encryptionkey, $secretkey);
             $org_response = json_decode($decrypted_post_response, true);
@@ -111,52 +110,13 @@ class Response extends \Magento\Framework\App\Action\Action
                     }
                 }
 
-                if (isset($new_order_status) && !empty($new_order_status)) {
-                    $orderState = $new_order_status;
-                    $order->setState($orderState)->setStatus($new_order_status);
-                } else {
-                    $orderState = Order::STATE_PROCESSING;
-                    $order->setState($orderState)->setStatus(Order::STATE_PROCESSING);
+                // The webhook usually arrives first; then the order is already paid and this
+                // changes nothing. False means the order was cancelled before the customer came back.
+                if (!$this->settlement->payFromReturn($order, (string) $result['Id'], $result)) {
+                    $redirectUrl = $this->_url->getUrl('checkout/onepage/failure');
+                    $this->_responseFactory->create()->setRedirect($redirectUrl)->sendResponse();
+                    exit();
                 }
-
-                $order->save();
-
-                //get payment object from order object
-                $payment = $order->getPayment();
-                $payment->setLastTransId($result['Id']);
-                $payment->setTransactionId($result['Id']);
-                $payment->setAdditionalInformation(
-                    [Transaction::RAW_DETAILS => (array)$result]
-                );
-                $formatedPrice = $order->getBaseCurrency()->formatTxt(
-                    $order->getGrandTotal()
-                );
-
-                $message = __('The authorized amount is %1.', $formatedPrice);
-                //get the object of builder class
-                $trans = $this->_objectManager->create(
-                    '\Magento\Sales\Model\Order\Payment\Transaction\Builder'
-                );
-
-                $transaction = $trans->setPayment($payment)
-                    ->setOrder($order)
-                    ->setTransactionId($result['Id'])
-                    ->setAdditionalInformation(
-                        [Transaction::RAW_DETAILS => (array)$result]
-                    )
-                    ->setFailSafe(true)
-                    //build method creates the transaction and returns the object
-                    ->build(Transaction::TYPE_CAPTURE);
-
-                $payment->addTransactionCommentsToOrder(
-                    $transaction,
-                    $message
-                );
-                $payment->setParentTransactionId(null);
-                $payment->save();
-                $order->save();
-
-                $transaction->save()->getTransactionId();
                 $this->_checkoutSession
                     ->setLastQuoteId($quoteId)
                     ->setLastSuccessQuoteId($quoteId)
@@ -174,16 +134,11 @@ class Response extends \Magento\Framework\App\Action\Action
                 $this->_responseFactory->create()->setRedirect($redirectUrl)->sendResponse();
                 exit();
             } else {
-                // There is a problem in the response we got
-                $this->_objectManager->create(
-                    '\Magento\Sales\Api\OrderManagementInterface'
-                )->cancel($order->getEntityId());
-
-                $orderState = Order::STATE_CANCELED;
-                $order->setState($orderState)->setStatus(Order::STATE_CANCELED);
-                $order->addStatusHistoryComment('Payment was not Sucessfully Placed with Transaction ID ' . $params["paymentId"], $orderState);
-                $order->setIsVisibleOnFront(true);
-                $order->save();
+                // There is a problem in the response we got. A paid order is left alone.
+                $this->settlement->cancelFromReturn(
+                    $order,
+                    'Payment was not Sucessfully Placed with Transaction ID ' . $params["paymentId"]
+                );
                 $redirectUrl = $this->_url->getUrl('checkout/onepage/failure');
                 $this->_responseFactory->create()->setRedirect($redirectUrl)->sendResponse();
                 exit();
