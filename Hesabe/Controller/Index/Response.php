@@ -110,39 +110,39 @@ class Response extends \Magento\Framework\App\Action\Action
                     }
                 }
 
-                // The webhook usually arrives first; then the order is already paid and this
-                // changes nothing. False means the order was cancelled before the customer came back.
-                if (!$this->settlement->payFromReturn($order, (string) $result['Id'], $result)) {
-                    $redirectUrl = $this->_url->getUrl('checkout/onepage/failure');
-                    $this->_responseFactory->create()->setRedirect($redirectUrl)->sendResponse();
-                    exit();
-                }
-                $this->_checkoutSession
-                    ->setLastQuoteId($quoteId)
-                    ->setLastSuccessQuoteId($quoteId)
-                    ->clearHelperData();
-
-                if ($order) {
-                    $this->_checkoutSession->setLastOrderId($order->getId())
-                        ->setLastRealOrderId($order->getIncrementId())
-                        ->setLastOrderStatus($order->getStatus());
-
-                }
-                $this->_checkoutSession->setResponseData('success');
-
-                $redirectUrl = $this->_url->getUrl('checkout/onepage/success');
-                $this->_responseFactory->create()->setRedirect($redirectUrl)->sendResponse();
-                exit();
+                $paid = $this->settlement->payFromReturn($order, (string) $result['Id'], $result);
             } else {
-                // There is a problem in the response we got. A paid order is left alone.
-                $this->settlement->cancelFromReturn(
+                // There is a problem in the response we got.
+                $paid = $this->settlement->cancelFromReturn(
                     $order,
                     'Payment was not Sucessfully Placed with Transaction ID ' . $params["paymentId"]
                 );
+            }
+
+            // The return decides an order still awaiting payment. An order the webhook settled
+            // first was checked again with the Transaction Enquiry, so the customer's page
+            // follows Hesabe's latest status.
+            if (!$paid) {
                 $redirectUrl = $this->_url->getUrl('checkout/onepage/failure');
                 $this->_responseFactory->create()->setRedirect($redirectUrl)->sendResponse();
                 exit();
             }
+            $this->_checkoutSession
+                ->setLastQuoteId($quoteId)
+                ->setLastSuccessQuoteId($quoteId)
+                ->clearHelperData();
+
+            if ($order) {
+                $this->_checkoutSession->setLastOrderId($order->getId())
+                    ->setLastRealOrderId($order->getIncrementId())
+                    ->setLastOrderStatus($order->getStatus());
+
+            }
+            $this->_checkoutSession->setResponseData('success');
+
+            $redirectUrl = $this->_url->getUrl('checkout/onepage/success');
+            $this->_responseFactory->create()->setRedirect($redirectUrl)->sendResponse();
+            exit();
         } catch (Exception $e) {
             //log errors here
         }

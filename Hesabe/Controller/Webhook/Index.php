@@ -16,8 +16,9 @@ use Magento\Sales\Model\OrderFactory;
 use Psr\Log\LoggerInterface;
 
 /**
- * Receives Hesabe's webhook at `hesabe/webhook/index`: the checkout asks for it with every
- * payment, so the order is updated even when the customer never comes back to the shop.
+ * Receives Hesabe's webhook at `hesabe/webhook/index`, the backup to the customer's return: the
+ * checkout asks for it with every payment, so the order is updated even when the customer
+ * never comes back to the shop or the return is not processed.
  *
  * Only a webhook with a valid `x-signature` changes anything. Hesabe retries a delivery that
  * fails or takes too long (seen on the sandbox, November 2026), so the answer is 503 when the

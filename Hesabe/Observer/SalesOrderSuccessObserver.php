@@ -361,7 +361,7 @@ class SalesOrderSuccessObserver implements ObserverInterface
             if (count($orderIds)) {
                 $this->_checkoutSession->setForceOrderMailSentOnSuccess(true);
                 $order = $this->_orderFactory->create()->load($orderIds[0]);
-                // The webhook usually pays the order, and sends this email, before the customer is back.
+                // The webhook sends this email when it pays the order before the customer is back.
                 if (!$order->getEmailSent()) {
                     $this->orderSender->send($order, true);
                 }

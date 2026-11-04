@@ -17,11 +17,14 @@ use Psr\Log\LoggerInterface;
  * Applies what Hesabe reports about a payment to its Magento order.
  *
  * Three things report a payment: the customer's return, Hesabe's webhook and the admin's
- * "Check Payment Status". They arrive in any order and some arrive more than once: the
- * webhook usually lands a few seconds before the customer, and Hesabe retries it. So every
- * change happens under a per-order lock, and only to an order still awaiting payment. A paid
- * or cancelled order is never changed here; when Hesabe disagrees with it, the order gets a
- * comment for a person to act on.
+ * "Check Payment Status". The return comes first: it decides an order still awaiting payment
+ * from what it carried. The webhook is the backup for a customer who never comes back, or a
+ * return the shop did not process. The two often land within a second of each other, and
+ * Hesabe retries the webhook, so every change happens under a per-order lock, and only to an
+ * order still awaiting payment. When the webhook settled the order before the customer came
+ * back, the return checks it again with the Transaction Enquiry. A paid or cancelled order is
+ * never changed here; when Hesabe disagrees with it, the order gets a comment for a person to
+ * act on.
  */
 class Settlement
 {
@@ -41,6 +44,9 @@ class Settlement
     public const UNREACHABLE = 'unreachable';
     /** Another request is updating the order; nothing changed. */
     public const BUSY = 'busy';
+
+    /** The customer came back to an order already paid or cancelled, by the webhook. */
+    private const SETTLED_BEFORE_RETURN = 'settled_before_return';
 
     /** The payment method codes this module owns. */
     public const METHODS = [Payment::METHOD_CODE, Hesabepayment::METHOD_CODE];
@@ -105,55 +111,25 @@ class Settlement
     }
 
     /**
-     * Asks Hesabe's Transaction Enquiry about the order and applies the answer.
+     * The admin's "Check Payment Status": applies Hesabe's latest status from the Transaction
+     * Enquiry.
      */
     public function confirm(Order $order): string
     {
-        try {
-            $attempts = $this->enquiry->attempts((string) $order->getIncrementId());
-        } catch (EnquiryException $exception) {
-            $this->logger->warning(sprintf(
-                'Hesabe payment check for order %s failed: %s',
-                $order->getIncrementId(),
-                $exception->getMessage()
-            ));
-            return self::UNREACHABLE;
-        }
-
-        $record = $this->pick($this->ownAttempts($order, $attempts));
-        return $this->locked($order, function (Order $fresh) use ($record): string {
-            if ($record === null) {
-                if (!$this->isPaid($fresh)) {
-                    return self::WAITING;
-                }
-                $fresh->addCommentToStatusHistory(__(
-                    'Payment status check: Hesabe has no payment for this order, but the order is marked paid. '
-                    . 'Check it in the Hesabe Merchant Panel.'
-                ));
-                $fresh->save();
-                return self::CONFLICT;
-            }
-            return $this->apply(
-                $fresh,
-                $record,
-                // `Id` is what the return page records as the transaction, so both name it alike.
-                (string) ($record['Id'] ?? $record['token'] ?? ''),
-                __('payment status check')
-            );
-        });
+        return $this->enquire($order, __('payment status check'), false);
     }
 
     /**
      * Marks the order paid from the customer's return, as the return page always has.
      *
      * @param array<string, mixed> $details What the return carried, kept on the transaction.
-     * @return bool Whether the order is paid afterwards, by this return or by the webhook.
+     * @return bool Whether the order is paid afterwards; the customer's page follows it.
      */
     public function payFromReturn(Order $order, string $transactionId, array $details): bool
     {
-        $this->locked($order, function (Order $fresh) use ($transactionId, $details): string {
+        $outcome = $this->locked($order, function (Order $fresh) use ($transactionId, $details): string {
             if (!$this->awaitsPayment($fresh)) {
-                return self::ALREADY_PAID;
+                return self::SETTLED_BEFORE_RETURN;
             }
             $this->markPaid(
                 $fresh,
@@ -163,20 +139,86 @@ class Settlement
             );
             return self::PAID;
         });
+        return $this->afterReturn($order, $outcome);
+    }
+
+    /**
+     * Cancels the order after a failed return, as the return page always has.
+     *
+     * @return bool Whether the order is paid afterwards: only when Hesabe's latest status says
+     *     so for an order the webhook settled first.
+     */
+    public function cancelFromReturn(Order $order, string $comment): bool
+    {
+        $outcome = $this->locked($order, function (Order $fresh) use ($comment): string {
+            if (!$this->awaitsPayment($fresh)) {
+                return self::SETTLED_BEFORE_RETURN;
+            }
+            $this->markCancelled($fresh, $comment);
+            return self::CANCELLED;
+        });
+        return $this->afterReturn($order, $outcome);
+    }
+
+    /**
+     * An order settled before the customer came back is checked again with the Transaction
+     * Enquiry, so it ends on Hesabe's latest status whichever report came first.
+     */
+    private function afterReturn(Order $order, string $outcome): bool
+    {
+        if ($outcome === self::SETTLED_BEFORE_RETURN) {
+            $this->enquire($order, __("Transaction Enquiry on the customer's return"), true);
+        }
         return $this->isPaid($this->fresh($order));
     }
 
     /**
-     * Cancels the order after a failed return, unless it is no longer awaiting payment.
+     * Asks Hesabe's Transaction Enquiry about the order and applies the latest status.
+     *
+     * @param bool $noteAgreement Whether a settled order that Hesabe agrees with gets a comment
+     *     saying so.
      */
-    public function cancelFromReturn(Order $order, string $comment): void
+    private function enquire(Order $order, Phrase $source, bool $noteAgreement): string
     {
-        $this->locked($order, function (Order $fresh) use ($comment): string {
-            if (!$this->awaitsPayment($fresh)) {
-                return self::CONFLICT;
+        try {
+            $attempts = $this->enquiry->attempts((string) $order->getIncrementId());
+        } catch (EnquiryException $exception) {
+            $this->logger->warning(sprintf(
+                'Hesabe %s for order %s failed: %s',
+                $source,
+                $order->getIncrementId(),
+                $exception->getMessage()
+            ));
+            return self::UNREACHABLE;
+        }
+
+        $record = $this->pick($this->ownAttempts($order, $attempts));
+        return $this->locked($order, function (Order $fresh) use ($record, $source, $noteAgreement): string {
+            if ($record === null) {
+                if (!$this->isPaid($fresh)) {
+                    return self::WAITING;
+                }
+                return $this->conflict($fresh, __(
+                    'Hesabe has no payment for this order (%1), but the order is marked paid. '
+                    . 'Check it in the Hesabe Merchant Panel.',
+                    $source
+                ));
             }
-            $this->markCancelled($fresh, $comment);
-            return self::CANCELLED;
+            $outcome = $this->apply(
+                $fresh,
+                $record,
+                // `Id` is what the return page records as the transaction, so both name it alike.
+                (string) ($record['Id'] ?? $record['token'] ?? ''),
+                $source
+            );
+            if ($noteAgreement && in_array($outcome, [self::ALREADY_PAID, self::ALREADY_CANCELLED], true)) {
+                $token = (string) ($record['token'] ?? '');
+                $fresh->addCommentToStatusHistory($outcome === self::ALREADY_PAID
+                    ? __('Hesabe confirms the payment (%1, token %2).', $source, $token)
+                    : __('Hesabe confirms the payment failed (%1, token %2).', $source, $token));
+                $fresh->save();
+            }
+            return $outcome;
         });
     }
 
@@ -250,7 +292,7 @@ class Settlement
     }
 
     /**
-     * The paid attempt if there is one, else the last attempt Hesabe lists.
+     * Hesabe's latest status: the paid attempt if there is one, else the last attempt listed.
      *
      * @param list<array<string, mixed>> $attempts
      * @return array<string, mixed>|null
