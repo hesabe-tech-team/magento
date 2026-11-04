@@ -12,6 +12,7 @@
 namespace HesabePayment\Hesabe\Observer;
 
 use HesabePayment\Hesabe\Helper\Data;
+use HesabePayment\Hesabe\Model\Settlement;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Customer\Api\CustomerRepositoryInterface;
 use Magento\Customer\Model\Session;
@@ -107,6 +108,9 @@ class SalesOrderSuccessObserver implements ObserverInterface
 
     protected $orderSender;
 
+    /** @var Settlement */
+    protected $settlement;
+
     /**
      * @param Manager $eventManager
      * @param ObjectManagerInterface $objectManager
@@ -138,7 +142,8 @@ class SalesOrderSuccessObserver implements ObserverInterface
         ResponseFactory $responseFactory,
         UrlInterface $url,
         ManagerInterface $messageManager,
-        OrderSender $orderSender
+        OrderSender $orderSender,
+        Settlement $settlement
     ) {
         $this->_eventManager = $eventManager;
         $this->_objectManager = $objectManager;
@@ -157,6 +162,7 @@ class SalesOrderSuccessObserver implements ObserverInterface
         $this->_date = $date;
         $this->messageManager = $messageManager;
         $this->orderSender = $orderSender;
+        $this->settlement = $settlement;
     }
 
     /**
@@ -243,6 +249,8 @@ class SalesOrderSuccessObserver implements ObserverInterface
                 file_put_contents(BP . '/var/log/hesabe_debug.log', print_r($decode_response, true), FILE_APPEND);
 
                 if ($decode_response->status) {
+                    // The token names this payment in Hesabe's webhook and Transaction Enquiry.
+                    $this->settlement->rememberCheckout($order, (string) ($decode_response->token ?? ''));
                     $payToken = $decode_response->response->data;
                     $payURL = $apiUrl . '/payment?data=' . $payToken;
                     header("location:" . $payURL);
@@ -325,6 +333,8 @@ class SalesOrderSuccessObserver implements ObserverInterface
                 $decode_response = json_decode($decrypted_post_response);
 
                 if ($decode_response->status) {
+                    // The token names this payment in Hesabe's webhook and Transaction Enquiry.
+                    $this->settlement->rememberCheckout($order, (string) ($decode_response->token ?? ''));
                     $payToken = $decode_response->response->data;
                     $payURL = $apiUrl . '/payment?data=' . $payToken;
                     header("location:" . $payURL);

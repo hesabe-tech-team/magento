@@ -47,6 +47,12 @@ class Settlement
 
     private const LOCK_SECONDS = 15;
 
+    /** Where the payment keeps the tokens of this order's checkouts. */
+    private const CHECKOUT_TOKENS = 'hesabe_checkout_tokens';
+
+    /** How much earlier than its order a payment may seem, for clocks that disagree. */
+    private const CLOCK_SKEW_SECONDS = 600;
+
     public function __construct(
         private readonly Config $config,
         private readonly Enquiry $enquiry,
@@ -57,6 +63,23 @@ class Settlement
         private readonly LockManagerInterface $locks,
         private readonly LoggerInterface $logger
     ) {
+    }
+
+    /**
+     * Keeps the token Hesabe returned for a checkout of this order: it names the payment in
+     * the webhook and the Transaction Enquiry. A customer who goes back from Hesabe's page and
+     * on again gets a new checkout, so every token is kept.
+     */
+    public function rememberCheckout(Order $order, string $token): void
+    {
+        $payment = $order->getPayment();
+        if ($token === '' || $payment === null) {
+            return;
+        }
+        $tokens = $this->checkoutTokens($order);
+        $tokens[] = $token;
+        $payment->setAdditionalInformation(self::CHECKOUT_TOKENS, array_values(array_unique($tokens)));
+        $payment->save();
     }
 
     /** True for orders paid with KNET or MPGS through this module. */
@@ -97,7 +120,7 @@ class Settlement
             return self::UNREACHABLE;
         }
 
-        $record = $this->pick($attempts);
+        $record = $this->pick($this->ownAttempts($order, $attempts));
         return $this->locked($order, function (Order $fresh) use ($record): string {
             if ($record === null) {
                 if (!$this->isPaid($fresh)) {
@@ -243,6 +266,52 @@ class Settlement
     }
 
     /**
+     * The attempts that are this order's own payment. Hesabe finds attempts by order number,
+     * and order numbers repeat across shops on one Hesabe account: on the sandbox, which every
+     * shop shares, order 000000020 also listed another shop's paid 15.000 KWD from April 2025
+     * (November 2026). The checkout tokens pick the order's own attempts. An order placed
+     * before the module kept them is matched by time instead: a payment cannot come before its
+     * order.
+     *
+     * @param list<array<string, mixed>> $attempts
+     * @return list<array<string, mixed>>
+     */
+    private function ownAttempts(Order $order, array $attempts): array
+    {
+        $tokens = $this->checkoutTokens($order);
+        if ($tokens !== []) {
+            return array_values(array_filter(
+                $attempts,
+                static fn (array $attempt): bool => in_array((string) ($attempt['token'] ?? ''), $tokens, true)
+            ));
+        }
+        $placed = (new \DateTimeImmutable((string) $order->getCreatedAt(), new \DateTimeZone('UTC')))
+            ->getTimestamp() - self::CLOCK_SKEW_SECONDS;
+        return array_values(array_filter(
+            $attempts,
+            static fn (array $attempt): bool => (self::kuwaitTime($attempt['datetime'] ?? null) ?? 0) >= $placed
+        ));
+    }
+
+    /** @return list<string> */
+    private function checkoutTokens(Order $order): array
+    {
+        $tokens = $order->getPayment()?->getAdditionalInformation(self::CHECKOUT_TOKENS);
+        return is_array($tokens) ? array_values(array_map('strval', $tokens)) : [];
+    }
+
+    /** Hesabe's times are Kuwait time without a zone (production, October 2026). */
+    private static function kuwaitTime(mixed $value): ?int
+    {
+        $time = \DateTimeImmutable::createFromFormat(
+            '!Y-m-d H:i:s',
+            trim((string) $value),
+            new \DateTimeZone('Asia/Kuwait')
+        );
+        return $time === false ? null : $time->getTimestamp();
+    }
+
+    /**
      * Marks the order paid with a capture transaction, as the return page always has.
      *
      * @param array<string, mixed> $details
@@ -260,7 +329,8 @@ class Settlement
         $payment = $order->getPayment();
         $payment->setLastTransId($transactionId);
         $payment->setTransactionId($transactionId);
-        $payment->setAdditionalInformation([Transaction::RAW_DETAILS => $details]);
+        // One key, not the whole array, so the checkout tokens stay.
+        $payment->setAdditionalInformation(Transaction::RAW_DETAILS, $details);
         $transaction = $this->transactionBuilder
             ->setPayment($payment)
             ->setOrder($order)
